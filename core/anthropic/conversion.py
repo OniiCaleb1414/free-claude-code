@@ -556,20 +556,22 @@ def build_base_request_body(
     default_max_tokens: int | None = None,
     reasoning_replay: ReasoningReplayMode = ReasoningReplayMode.THINK_TAGS,
 ) -> dict[str, Any]:
-    """Build the common parts of an OpenAI-format request body."""
+    """Build the common parts of a request body compatible with OpenAI-like APIs and Anthropic.
+    
+    Note: This function keeps the system field separate from messages, which is required for both
+    the Anthropic API and OpenAI-compatible APIs.
+    """
     _openai_reject_native_only_top_level_fields(request_data)
     messages = AnthropicToOpenAIConverter.convert_messages(
         request_data.messages,
         reasoning_replay=reasoning_replay,
     )
 
+    body: dict[str, Any] = {"model": request_data.model, "messages": messages}
+
     system = getattr(request_data, "system", None)
     if system:
-        system_msg = AnthropicToOpenAIConverter.convert_system_prompt(system)
-        if system_msg:
-            messages.insert(0, system_msg)
-
-    body: dict[str, Any] = {"model": request_data.model, "messages": messages}
+        body["system"] = system
 
     max_tokens = getattr(request_data, "max_tokens", None)
     set_if_not_none(body, "max_tokens", max_tokens or default_max_tokens)
